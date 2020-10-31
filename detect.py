@@ -1,5 +1,5 @@
 from __future__ import print_function
-import os
+import os,re
 import argparse
 import torch
 import torch.backends.cudnn as cudnn
@@ -14,9 +14,9 @@ import time
 
 parser = argparse.ArgumentParser(description='Retinaface')
 
-parser.add_argument('-m', '--trained_model', default='./weights/Resnet50_Final.pth',
+parser.add_argument('-m', '--trained_model', default='./weights/mobilenet0.25_Final.pth',
                     type=str, help='Trained state_dict file path to open')
-parser.add_argument('--network', default='resnet50', help='Backbone network mobile0.25 or resnet50')
+parser.add_argument('--network', default='mobile0.25', help='Backbone network mobile0.25 or resnet50')
 parser.add_argument('--cpu', action="store_true", default=False, help='Use cpu inference')
 parser.add_argument('--confidence_threshold', default=0.02, type=float, help='confidence_threshold')
 parser.add_argument('--top_k', default=5000, type=int, help='top_k')
@@ -24,6 +24,7 @@ parser.add_argument('--nms_threshold', default=0.4, type=float, help='nms_thresh
 parser.add_argument('--keep_top_k', default=750, type=int, help='keep_top_k')
 parser.add_argument('-s', '--save_image', action="store_true", default=True, help='show detection results')
 parser.add_argument('--vis_thres', default=0.6, type=float, help='visualization_threshold')
+parser.add_argument('--path', default='./test', type=str, help='custom test image path')
 args = parser.parse_args()
 
 
@@ -75,18 +76,26 @@ if __name__ == '__main__':
     net = load_model(net, args.trained_model, args.cpu)
     net.eval()
     print('Finished loading model!')
-    print(net)
+    #print(net)
     cudnn.benchmark = True
     device = torch.device("cpu" if args.cpu else "cuda")
     net = net.to(device)
 
     resize = 1
+    
+    detect_path = os.path.join(args.path,'detect')
+    
+    if os.path.exists(detect_path) is False:
+        os.makedirs(detect_path)
 
     # testing begin
-    for i in range(100):
-        image_path = "./curve/test.jpg"
+    for file in os.listdir(args.path):
+        if re.match('.*(jpg|png|jpeg)',file) is None:
+            continue
+        
+        image_path = os.path.join(args.path,file)
         img_raw = cv2.imread(image_path, cv2.IMREAD_COLOR)
-
+        
         img = np.float32(img_raw)
 
         im_height, im_width, _ = img.shape
@@ -99,7 +108,7 @@ if __name__ == '__main__':
 
         tic = time.time()
         loc, conf, landms = net(img)  # forward pass
-        print('net forward time: {:.4f}'.format(time.time() - tic))
+        print('Processing {} net forward time: {:.4f}'.format(file,time.time() - tic))
 
         priorbox = PriorBox(cfg, image_size=(im_height, im_width))
         priors = priorbox.forward()
@@ -162,7 +171,7 @@ if __name__ == '__main__':
                 cv2.circle(img_raw, (b[11], b[12]), 1, (0, 255, 0), 4)
                 cv2.circle(img_raw, (b[13], b[14]), 1, (255, 0, 0), 4)
             # save image
-
-            name = "test.jpg"
-            cv2.imwrite(name, img_raw)
+            
+            output_path = os.path.join(detect_path,file)
+            cv2.imwrite(output_path, img_raw)
 
