@@ -79,6 +79,7 @@ if __name__ == '__main__':
     #print(net)
     cudnn.benchmark = True
     device = torch.device("cpu" if args.cpu else "cuda")
+    print(device)
     net = net.to(device)
 
     resize = 1
@@ -151,6 +152,21 @@ if __name__ == '__main__':
 
         dets = np.concatenate((dets, landms), axis=1)
 
+        # --------------------------------------------------------------------
+        save_name = os.path.join(detect_path,file+'.txt')
+        with open(save_name, "w") as fd:
+            bboxs = dets
+            bboxs_num = str(len(bboxs)) + "\n"
+            fd.write(bboxs_num)
+            for box in bboxs:
+                x = int(box[0])
+                y = int(box[1])
+                w = int(box[2]) - int(box[0])
+                h = int(box[3]) - int(box[1])
+                confidence = str(box[4])
+                line = str(x) + " " + str(y) + " " + str(w) + " " + str(h) + " " + confidence + " \n"
+                fd.write(line)
+
         # show image
         if args.save_image:
             for b in dets:
@@ -165,11 +181,11 @@ if __name__ == '__main__':
                             cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255))
 
                 # landms
-                cv2.circle(img_raw, (b[5], b[6]), 1, (0, 0, 255), 4)
-                cv2.circle(img_raw, (b[7], b[8]), 1, (0, 255, 255), 4)
-                cv2.circle(img_raw, (b[9], b[10]), 1, (255, 0, 255), 4)
-                cv2.circle(img_raw, (b[11], b[12]), 1, (0, 255, 0), 4)
-                cv2.circle(img_raw, (b[13], b[14]), 1, (255, 0, 0), 4)
+                #cv2.circle(img_raw, (b[5], b[6]), 1, (0, 0, 255), 4)
+                #cv2.circle(img_raw, (b[7], b[8]), 1, (0, 255, 255), 4)
+                #cv2.circle(img_raw, (b[9], b[10]), 1, (255, 0, 255), 4)
+                #cv2.circle(img_raw, (b[11], b[12]), 1, (0, 255, 0), 4)
+                #cv2.circle(img_raw, (b[13], b[14]), 1, (255, 0, 0), 4)
             # save image
             
             output_path = os.path.join(detect_path,file)
