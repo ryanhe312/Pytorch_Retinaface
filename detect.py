@@ -25,6 +25,7 @@ parser.add_argument('--keep_top_k', default=750, type=int, help='keep_top_k')
 parser.add_argument('-s', '--save_image', action="store_true", default=True, help='show detection results')
 parser.add_argument('--vis_thres', default=0.6, type=float, help='visualization_threshold')
 parser.add_argument('--path', default='./test', type=str, help='custom test image path')
+parser.add_argument('--label', default='visualize', type=str, help='for predict or visualize')
 args = parser.parse_args()
 
 
@@ -79,23 +80,37 @@ if __name__ == '__main__':
     #print(net)
     cudnn.benchmark = True
     device = torch.device("cpu" if args.cpu else "cuda")
-    print(device)
+    print('Device:',device)
     net = net.to(device)
 
     resize = 1
     
-    detect_path = os.path.join(args.path,'detect')
+    image_path = os.path.join(args.path,'Images')
+
+    if os.path.exists(image_path) is False:
+        os.makedirs(image_path)
+
+    if args.label == 'predict':
+        predict_path = os.path.join(args.path,'Predicts')
+    else:
+        predict_path = os.path.join(args.path,'Labels')
+
+    if os.path.exists(predict_path) is False:
+        os.makedirs(predict_path)
+
+    detect_path = os.path.join(args.path,'Detects')
     
     if os.path.exists(detect_path) is False:
         os.makedirs(detect_path)
 
     # testing begin
-    for file in os.listdir(args.path):
+    for file in os.listdir(image_path):
         if re.match('.*(jpg|png|jpeg)',file) is None:
             continue
         
-        image_path = os.path.join(args.path,file)
-        img_raw = cv2.imread(image_path, cv2.IMREAD_COLOR)
+        print('Processing file:',file)
+        file_path = os.path.join(image_path,file)
+        img_raw = cv2.imread(file_path, cv2.IMREAD_COLOR)
         
         img = np.float32(img_raw)
 
@@ -152,19 +167,26 @@ if __name__ == '__main__':
 
         dets = np.concatenate((dets, landms), axis=1)
 
-        # --------------------------------------------------------------------
-        save_name = os.path.join(detect_path,file+'.txt')
+        # save label
+        save_name = os.path.join(predict_path,'.'.join(file.split('.')[:-1])+'.txt')
         with open(save_name, "w") as fd:
             bboxs = dets
+            if args.label == 'visualize':
+                index = bboxs[:,4] > args.vis_thres
+                bboxs = bboxs[index]
             bboxs_num = str(len(bboxs)) + "\n"
             fd.write(bboxs_num)
             for box in bboxs:
-                x = int(box[0])
-                y = int(box[1])
-                w = int(box[2]) - int(box[0])
-                h = int(box[3]) - int(box[1])
+                x1 = int(box[0])
+                y1 = int(box[1])
+                x2 = int(box[2])
+                y2 = int(box[3])
                 confidence = str(box[4])
-                line = str(x) + " " + str(y) + " " + str(w) + " " + str(h) + " " + confidence + " \n"
+                line = str(x1) + " " + str(y1) + " " + str(x2) + " " + str(y2)
+                if args.label == 'visualize':
+                    line = line+ " \n"
+                else:
+                    line = line+" " + confidence + " \n"
                 fd.write(line)
 
         # show image
