@@ -30,35 +30,32 @@ def image_eval(pred, gt, iou_thresh):
     success = np.zeros(_pred.shape[0])
     predict = np.zeros(_pred.shape[0])
 
-    _pred[:, 2] = _pred[:, 2] + _pred[:, 0]
-    _pred[:, 3] = _pred[:, 3] + _pred[:, 1]
-    _gt[:, 2] = _gt[:, 2] + _gt[:, 0]
-    _gt[:, 3] = _gt[:, 3] + _gt[:, 1]
+    if len(_pred) > 0:
+        overlaps = multi_iou_2d(BBox2DList(_pred[:, :4]),BBox2DList(_gt))
 
-    overlaps = multi_iou_2d(BBox2DList(_pred[:, :4]),BBox2DList(_gt))
+        for h in range(_pred.shape[0]):
 
-    for h in range(_pred.shape[0]):
-
-        gt_overlap = overlaps[h]
-        max_overlap, max_idx = gt_overlap.max(), gt_overlap.argmax()
-        if max_overlap >= iou_thresh:
-            success[h] = 1
-            predict[h] = max_idx
+            gt_overlap = overlaps[h]
+            max_overlap, max_idx = gt_overlap.max(), gt_overlap.argmax()
+            if max_overlap >= iou_thresh:
+                success[h] = 1
+                predict[h] = max_idx
     return success==1, predict
 
 def img_pr_info(thresh_num, pred_info, success, predict):
     pr_info = np.zeros((thresh_num, 2)).astype('float')
-    for t in range(thresh_num):
+    if len(pred_info) > 0:
+        for t in range(thresh_num):
 
-        thresh = 1 - (t+1)/thresh_num
-        r_index = np.array(pred_info[:, 4] >= thresh)
-        if np.sum(r_index) == 0:
-            pr_info[t, 0] = 0
-            pr_info[t, 1] = 0
-        else:
-            r_index = r_index & success
-            pr_info[t, 0] = np.sum(r_index)
-            pr_info[t, 1] = len(set(predict[r_index]))
+            thresh = 1 - (t+1)/thresh_num
+            r_index = np.array(pred_info[:, 4] >= thresh)
+            if np.sum(r_index) == 0:
+                pr_info[t, 0] = 0
+                pr_info[t, 1] = 0
+            else:
+                r_index = r_index & success
+                pr_info[t, 0] = np.sum(r_index)
+                pr_info[t, 1] = len(set(predict[r_index]))
     return pr_info
 
 def dataset_pr_info(thresh_num, pr_curve, count_face):
@@ -90,7 +87,7 @@ def voc_ap(rec, prec):
 if __name__ == '__main__':
 
     predict_path = './test/Predicts'
-    gt_path = './test/Labels'
+    gt_path = './test/Labels/000'
     thresh_num = 1000
     iou_thresh = 0.5
 
@@ -100,6 +97,8 @@ if __name__ == '__main__':
         #print(file)
         pred_info  = read_bbox_file(os.path.join(predict_path,file))
         gt_boxes   = read_bbox_file(os.path.join(gt_path,file),'gt')
+
+        #print(gt_boxes.shape)
 
         count_face += len(gt_boxes)
 
@@ -121,12 +120,13 @@ if __name__ == '__main__':
 
     print(ap)
     print(pr_curve)
+    print('total faces:',count_face)
 
     fig,ax = plt.subplots()
     ax.plot(recall,propose)
     ax.set(title='Precision-Recall Curve',
-           xticks=np.arange(0,1,1/10),
-           yticks=np.arange(0,1,1/10),
+           #xticks=np.arange(0,1,1/10),
+           #yticks=np.arange(0,1,1/10),
            xlabel='Recall',
            ylabel='Precision')
     fig.savefig('./test/curve.jpg')

@@ -1,5 +1,5 @@
 from __future__ import print_function
-import os,re
+import os,re,time
 import argparse
 import torch
 import torch.backends.cudnn as cudnn
@@ -25,7 +25,7 @@ parser.add_argument('--keep_top_k', default=750, type=int, help='keep_top_k')
 parser.add_argument('-s', '--save_image', action="store_true", default=True, help='show detection results')
 parser.add_argument('--vis_thres', default=0.6, type=float, help='visualization_threshold')
 parser.add_argument('--path', default='./test', type=str, help='custom test image path')
-parser.add_argument('--label', default='visualize', type=str, help='for predict or visualize')
+parser.add_argument('--label', default='predict', type=str, help='for predict or visualize')
 args = parser.parse_args()
 
 
@@ -66,6 +66,8 @@ def load_model(model, pretrained_path, load_to_cpu):
 
 
 if __name__ == '__main__':
+
+    t1 = time.time()
     torch.set_grad_enabled(False)
     cfg = None
     if args.network == "mobile0.25":
@@ -83,9 +85,10 @@ if __name__ == '__main__':
     print('Device:',device)
     net = net.to(device)
 
+    print('Model Loading Time:',time.time()-t1)
     resize = 1
     
-    image_path = os.path.join(args.path,'Images')
+    image_path = os.path.join(args.path,'Images','000')
 
     if os.path.exists(image_path) is False:
         os.makedirs(image_path)
@@ -93,7 +96,7 @@ if __name__ == '__main__':
     if args.label == 'predict':
         predict_path = os.path.join(args.path,'Predicts')
     else:
-        predict_path = os.path.join(args.path,'Labels')
+        predict_path = os.path.join(args.path,'Labels','000')
 
     if os.path.exists(predict_path) is False:
         os.makedirs(predict_path)
@@ -102,6 +105,8 @@ if __name__ == '__main__':
     
     if os.path.exists(detect_path) is False:
         os.makedirs(detect_path)
+
+    t0 = 0
 
     # testing begin
     for file in os.listdir(image_path):
@@ -124,7 +129,10 @@ if __name__ == '__main__':
 
         tic = time.time()
         loc, conf, landms = net(img)  # forward pass
-        print('Processing {} net forward time: {:.4f}'.format(file,time.time() - tic))
+
+        t = time.time() - tic
+        t0 += t
+        print('Processing {} net forward time: {:.4f}'.format(file,t))
 
         priorbox = PriorBox(cfg, image_size=(im_height, im_width))
         priors = priorbox.forward()
@@ -213,3 +221,4 @@ if __name__ == '__main__':
             output_path = os.path.join(detect_path,file)
             cv2.imwrite(output_path, img_raw)
 
+    print('Average Processing time:',t0/len(os.listdir(image_path)))
